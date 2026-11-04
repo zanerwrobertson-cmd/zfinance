@@ -3,11 +3,9 @@
 CATEGORIES = [
     "Groceries",
     "Dining",
-    "Coffee",
     "Transport",
     "Rent",
     "Utilities",
-    "Phone & Internet",
     "Subscriptions",
     "Shopping",
     "Entertainment",

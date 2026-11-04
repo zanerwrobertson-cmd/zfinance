@@ -33,8 +33,6 @@ VARIABLE = {
         ("LAZEEZ SHAWARMA", 11, 20), ("BARBURRITO", 12, 19), ("BOSTON PIZZA", 22, 60),
         ("EAST SIDE MARIO'S", 25, 65), ("THE CEEPS BAR", 15, 55), ("JOE KOOLS", 18, 60),
         ("MUCHO BURRITO", 12, 19), ("WENDY'S", 8, 16), ("POPEYES LOUISIANA KITCHEN", 9, 20),
-    ],
-    "Coffee": [
         ("TIM HORTONS", 2.5, 9), ("STARBUCKS", 5, 12), ("SECOND CUP", 4, 10), ("BALZAC'S COFFEE", 4, 11),
         ("LOCOMOTIVE ESPRESSO", 4, 10), ("WILLIAMS FRESH CAFE", 4, 12), ("COFFEE CULTURE CAFE", 4, 11),
         ("BLACK WALNUT BAKERY CAFE", 4, 13),
@@ -80,7 +78,7 @@ VARIABLE = {
 
 # Expected events per month for variable categories.
 RATES = {
-    "Groceries": 6, "Dining": 8, "Coffee": 11, "Transport": 6, "Shopping": 3, "Entertainment": 2,
+    "Groceries": 6, "Dining": 19, "Transport": 6, "Shopping": 3, "Entertainment": 2,
     "Health": 1.2, "Fees": 0.8, "Other": 1.2, "Travel": 0.25, "Education": 0.4,
 }
 
@@ -94,7 +92,7 @@ def _decorate(merchant: str, category: str, rng: np.random.Generator, store: int
         return merchant
     parts = []
     prefix = rng.choice(PREFIXES)
-    if prefix in ("SQ *", "TST* ") and category not in ("Dining", "Coffee", "Groceries"):
+    if prefix in ("SQ *", "TST* ") and category not in ("Dining", "Groceries"):
         prefix = ""
     parts.append(f"{prefix}{merchant}")
     if rng.random() < 0.6:
@@ -135,8 +133,8 @@ def generate(months: int = 12, seed: int = 7, end: date | None = None) -> pd.Dat
         add(day(1), "PREAUTHORIZED DEBIT NORTHSIDE PROPERTY MGMT", -875.00, "Rent", False)
         add(day(12), "LONDON HYDRO", -rng.uniform(45, 95), "Utilities", False)
         add(day(18), "ENBRIDGE GAS", -rng.uniform(25, 130), "Utilities", False)
-        add(day(5), "ROGERS WIRELESS", -55.37, "Phone & Internet", False)
-        add(day(22), "START.CA INTERNET", -62.15, "Phone & Internet", False)
+        add(day(5), "ROGERS WIRELESS", -55.37, "Utilities", False)
+        add(day(22), "START.CA INTERNET", -62.15, "Utilities", False)
         for name, amt, d in [
             ("SPOTIFY P1A2B3C4", -12.42, 3), ("NETFLIX.COM", -18.63, 9), ("CRUNCHYROLL", -9.03, 14),
             ("APPLE.COM/BILL", -3.94, 20), ("GOODLIFE FITNESS CLUBS", -45.18, 15),
