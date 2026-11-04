@@ -76,3 +76,38 @@ User labels are never overwritten by predictions. Each retrain logs its cross-va
 
 A random train/test split lets the same merchant appear on both sides, so it mostly measures memorization. zfinance also reports **GroupKFold grouped by merchant**, where every test merchant is absent from training, and shows both numbers so the gap is visible. The benchmark also simulates real use: label the first N months, then predict the rest.
 
+## Evaluation
+
+Output of `python scripts/evaluate.py`, averaged over 5 simulated users (~674 transactions and ~137 distinct merchant strings each).
+
+| Method | Accuracy |
+|---|---|
+| Majority class | 35.1% |
+| Keyword rules | 74.5% |
+| Model, random split | 96.9% |
+| Model, unseen merchants only | 54.0% (macro-F1 0.31) |
+
+**Realistic use: label the first N months, predict the rest** (auto-accept at confidence ≥ 0.8)
+
+| Months labelled | Model accuracy | Keyword rules | Auto-categorized | Precision on auto-categorized |
+|---|---|---|---|---|
+| 1 | 77.7% | 74.7% | 44.0% | 100.0% |
+| 2 | 86.2% | 74.3% | 60.1% | 99.8% |
+| 3 | 91.5% | 74.4% | 70.8% | 99.9% |
+| 6 | 96.6% | 74.4% | 88.5% | 99.9% |
+
+What the numbers show:
+
+- After one month of labels the model already edges out hand-written rules. After six months it reaches 96.6%.
+- Predictions above the confidence threshold are 99.8% precise or better, so most transactions can be auto-accepted and only the uncertain ones need review.
+- On merchants it has never seen, the model gets about 54%. The merchant memory and the review loop cover that gap.
+
+**Caveat:** the data is synthetic, and the keyword rules were written knowing the merchant list, which favours the baseline. To benchmark your own labelled data, run `python scripts/evaluate.py --db data/zfinance.db`.
+
+## Tests
+
+```bash
+python -m pytest
+```
+
+The tests cover description normalization, the RBC, TD and generic headerless importers, sign inversion, manual mapping, dedup on re-import, protection of user labels, and the categorizer (training guards, merchant memory, evaluation).
