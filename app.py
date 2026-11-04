@@ -184,7 +184,45 @@ def page_dashboard():
         st.dataframe(rec, hide_index=True, width="stretch")
 
 
+def page_budgets():
+    st.header("Budgets")
+    budgets = store.budgets()
+    spend_cats = [c for c in CATEGORIES if c not in ("Income", "Transfer")]
+    table = pd.DataFrame({"category": spend_cats, "monthly_limit": [budgets.get(c) for c in spend_cats]})
+    edited = st.data_editor(
+        table, hide_index=True, disabled=["category"],
+        column_config={"monthly_limit": st.column_config.NumberColumn(min_value=0, format="$%.2f")},
+    )
+    if st.button("Save budgets"):
+        for r in edited.itertuples():
+            store.set_budget(r.category, None if pd.isna(r.monthly_limit) else r.monthly_limit)
+        st.rerun()
 
-pages = {"Import": page_import, "Review": page_review, "Dashboard": page_dashboard}
+    if not budgets:
+        st.info("Set a limit above to track a category.")
+        return
+    df = store.transactions()
+    df = df[df["category"].notna()]
+    if df.empty:
+        return
+    months = sorted(df["date"].dt.to_period("M").astype(str).unique(), reverse=True)
+    month = st.selectbox("Month", months)
+    status = budget_status(df, budgets, month)
+    st.dataframe(
+        status, hide_index=True, width="stretch",
+        column_config={
+            "limit": st.column_config.NumberColumn(format="$%.2f"),
+            "spent": st.column_config.NumberColumn(format="$%.2f"),
+            "remaining": st.column_config.NumberColumn(format="$%.2f"),
+            "projected": st.column_config.NumberColumn("projected month-end", format="$%.2f"),
+            "pct_used": st.column_config.ProgressColumn("used", min_value=0, max_value=1, format="percent"),
+        },
+    )
+    over = status[~status["on_track"]]
+    for r in over.itertuples():
+        st.warning(f"{r.category}: on pace for ${r.projected:,.0f} against a ${r.limit:,.0f} limit.")
+
+
+pages = {"Import": page_import, "Review": page_review, "Dashboard": page_dashboard, "Budgets": page_budgets}
 choice = st.sidebar.radio("zfinance", list(pages))
 pages[choice]()
