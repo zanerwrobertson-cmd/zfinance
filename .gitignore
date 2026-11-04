@@ -1,8 +1,37 @@
+# Personal financial data: databases, exports and anything trained on them stay local.
 data/
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+*.csv
+!sample_data/*.csv
+*.xlsx
+*.xls
+*.ofx
+*.qfx
+*.pkl
+*.pickle
+*.joblib
+models/
+
+# Secrets
+.env
+.env.*
+.streamlit/secrets.toml
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Python tooling
 __pycache__/
 *.pyc
 .pytest_cache/
 .venv/
 venv/
-.streamlit/secrets.toml
-.claude/
+
+# Local editor/assistant state; the shared settings file is committed.
+.claude/*
+!.claude/settings.json
