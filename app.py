@@ -145,7 +145,46 @@ def page_review():
         st.success(f"Saved {len(labels)} labels. Retrain to update predictions.")
 
 
+def page_dashboard():
+    st.header("Dashboard")
+    df = store.transactions()
+    df = df[df["category"].notna()]
+    if df.empty:
+        st.info("No categorized transactions yet.")
+        return
 
-pages = {"Import": page_import, "Review": page_review}
+    ms = monthly_summary(df)
+    last = ms.iloc[-1]
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric(f"Income ({last['month']})", f"${last['income']:,.0f}")
+    c2.metric("Spending", f"${last['spending']:,.0f}")
+    c3.metric("Net", f"${last['net']:,.0f}")
+    c4.metric("Savings rate", "—" if pd.isna(last["savings_rate"]) else f"{last['savings_rate']:.0%}")
+
+    long = ms.melt("month", ["income", "spending"], "type", "value")
+    st.plotly_chart(px.bar(long, x="month", y="value", color="type", barmode="group",
+                           title="Income vs spending"), width="stretch")
+    st.plotly_chart(px.line(ms, x="month", y="savings_rate", markers=True, title="Savings rate")
+                    .update_yaxes(tickformat=".0%"), width="stretch")
+
+    cbm = category_by_month(df)
+    left, right = st.columns(2)
+    left.plotly_chart(px.bar(cbm, x="month", y="spend", color="category", title="Spending by category"),
+                      width="stretch")
+    month = right.selectbox("Month", sorted(cbm["month"].unique(), reverse=True))
+    right.plotly_chart(px.pie(cbm[cbm["month"] == month], names="category", values="spend", hole=0.4),
+                       width="stretch")
+
+    st.subheader("Recurring charges")
+    rec = detect_recurring(df)
+    if rec.empty:
+        st.caption("None detected.")
+    else:
+        st.metric("Total per year", f"${rec['annual_cost'].sum():,.0f}")
+        st.dataframe(rec, hide_index=True, width="stretch")
+
+
+
+pages = {"Import": page_import, "Review": page_review, "Dashboard": page_dashboard}
 choice = st.sidebar.radio("zfinance", list(pages))
 pages[choice]()
