@@ -94,7 +94,58 @@ def page_import():
         st.success("Cleared.")
 
 
+def page_review():
+    st.header("Review")
+    df = store.transactions()
+    if df.empty:
+        st.info("Import some transactions first.")
+        return
+    queue = df[df["label_source"] != "user"].sort_values("confidence", na_position="first")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("To review", len(queue))
+    c2.metric("User labelled", int((df["label_source"] == "user").sum()))
+    runs = store.model_runs()
+    if not runs.empty and pd.notna(runs["cv_macro_f1"].iloc[-1]):
+        c3.metric("Unseen-merchant macro-F1", f"{runs['cv_macro_f1'].iloc[-1]:.2f}")
 
-pages = {"Import": page_import}
+    if c1.button("Retrain model"):
+        st.info(retrain())
+        st.rerun()
+    if queue.empty:
+        st.success("Nothing to review.")
+        return
+
+    n = st.slider("Rows to show", 10, 200, 50)
+    shown = queue.head(n)[["id", "date", "description", "amount", "category", "confidence"]]
+    select_all = st.checkbox("Select all", help="Tick confirm on every row shown")
+    shown = shown.assign(confirm=select_all)
+    edited = st.data_editor(
+        shown,
+        hide_index=True,
+        width="stretch",
+        disabled=["id", "date", "description", "amount", "confidence"],
+        column_config={
+            "category": st.column_config.SelectboxColumn(options=CATEGORIES),
+            "confidence": st.column_config.ProgressColumn(min_value=0, max_value=1, format="%.2f"),
+            "confirm": st.column_config.CheckboxColumn(help="Accept this category as a label"),
+        },
+    )
+    same_merchant = st.checkbox("Apply each label to every transaction from the same merchant", True)
+
+    if st.button("Save labels", type="primary"):
+        changed = edited[(edited["category"] != shown["category"].values) | edited["confirm"]]
+        changed = changed[changed["category"].notna()]
+        labels = dict(zip(changed["id"], changed["category"]))
+        if same_merchant:
+            clean = df.set_index("id")["clean_desc"]
+            for i, cat in list(labels.items()):
+                for j in df.loc[df["clean_desc"] == clean[i], "id"]:
+                    labels[j] = cat
+        store.set_labels(labels)
+        st.success(f"Saved {len(labels)} labels. Retrain to update predictions.")
+
+
+
+pages = {"Import": page_import, "Review": page_review}
 choice = st.sidebar.radio("zfinance", list(pages))
 pages[choice]()
