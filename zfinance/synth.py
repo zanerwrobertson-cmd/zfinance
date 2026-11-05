@@ -11,11 +11,15 @@ Also writes the same data in RBC-style and TD-style CSV layouts to exercise the 
 from __future__ import annotations
 
 import csv
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+# Fixed seed and end date so the demo data and the benchmark are reproducible.
+DEFAULT_SEED = 7
+DEFAULT_END = date(2026, 9, 30)
 
 # category -> list of (merchant, low, high)
 VARIABLE = {
@@ -104,9 +108,8 @@ def _decorate(merchant: str, category: str, rng: np.random.Generator, store: int
     return " ".join(parts)
 
 
-def generate(months: int = 12, seed: int = 7, end: date | None = None) -> pd.DataFrame:
+def generate(months: int = 12, seed: int = DEFAULT_SEED, end: date = DEFAULT_END) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
-    end = end or date.today().replace(day=1) - timedelta(days=1)
     start = (pd.Timestamp(end) - pd.DateOffset(months=months) + pd.Timedelta(days=1)).date()
     stores = {}  # merchant -> a couple of store numbers so normalized names repeat
     rows: list[tuple[date, str, float, str]] = []
