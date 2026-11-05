@@ -78,7 +78,7 @@ A random train/test split lets the same merchant appear on both sides, so it mos
 
 ## Evaluation
 
-Output of `python scripts/evaluate.py`, averaged over 5 simulated users (~674 transactions and ~137 distinct merchant strings each).
+Output of `python scripts/evaluate.py`, averaged over 5 simulated users (~674 transactions and ~137 distinct merchant strings each). The synthetic data uses fixed seeds (0-4) and a fixed end date (2026-09-30), so these numbers reproduce exactly.
 
 | Method | Accuracy |
 |---|---|
