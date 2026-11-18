@@ -134,20 +134,26 @@ class Categorizer:
         return self
 
     def predict(self, df: pd.DataFrame) -> tuple[list[str], list[float]]:
+        cats, confs, _ = self.predict_with_source(df)
+        return cats, confs
+
+    def predict_with_source(self, df: pd.DataFrame) -> tuple[list[str], list[float], list[str]]:
+        """Like predict, plus where each answer came from: "exact", "key" or "model"."""
         if self.pipeline is None:
             raise RuntimeError("Model is not trained.")
         if df.empty:
-            return [], []
+            return [], [], []
         proba = self.pipeline.predict_proba(df[["clean_desc", "amount"]])
         idx = proba.argmax(axis=1)
         cats = [self.classes_[i] for i in idx]
         confs = proba[np.arange(len(idx)), idx].tolist()
+        sources = ["model"] * len(cats)
         for k, desc in enumerate(df["clean_desc"]):
-            label, _ = self.memory.lookup(desc)
+            label, source = self.memory.lookup(desc)
             if label is not None:
-                cats[k] = label
+                cats[k], sources[k] = label, source
                 confs[k] = max(confs[k], 0.99)
-        return cats, confs
+        return cats, confs, sources
 
     def top_terms(self, category: str, n: int = 10) -> list[str]:
         """Most positive word features for a class — shows what the model learned."""

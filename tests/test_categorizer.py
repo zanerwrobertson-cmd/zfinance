@@ -89,3 +89,12 @@ def test_propagate_labels_uses_same_rule_as_memory():
     assert propagate_labels(df, {1: "Dining"}) == {1: "Dining", 3: "Dining", 2: "Dining"}
     # "e transfer" would hold Rent and Other, so the key doesn't spread to bob.
     assert propagate_labels(df, {5: "Other"}) == {5: "Other"}
+
+
+def test_predict_with_source_reports_memory_and_model(labeled):
+    model = Categorizer().fit(labeled)
+    seen = labeled["clean_desc"].iloc[0]
+    test = pd.DataFrame({"clean_desc": [seen, "zzqx unknown shop"], "amount": [-10.0, -10.0]})
+    cats, confs, sources = model.predict_with_source(test)
+    assert sources == ["exact", "model"]
+    assert (cats, confs) == tuple(model.predict(test))
