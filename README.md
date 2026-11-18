@@ -21,12 +21,15 @@ git clone https://github.com/zanerwrobertson-cmd/zfinance.git
 cd zfinance
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements.txt       # to run the app
+pip install -r requirements-dev.txt   # also needed for the tests and benchmark
 
 streamlit run app.py             # the app
 python -m pytest                 # the tests
 python scripts/evaluate.py       # the benchmark; writes reports/evaluation.md
 ```
+
+Versions are pinned so a new release of a dependency can't break the app. The pins were tested on Python 3.12.
 
 In the app, open **Import** and click **Load demo data** to try it without your own bank data. `sample_data/` also has example RBC and TD exports.
 
