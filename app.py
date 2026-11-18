@@ -30,7 +30,8 @@ def public_mode() -> bool:
         return False
 
 
-if public_mode():
+PUBLIC = public_mode()
+if PUBLIC:
     if "db_id" not in st.session_state:
         st.session_state.db_id = uuid.uuid4().hex
         # Only session_state holds this marker, so the file is deleted when Streamlit drops the session.
@@ -40,6 +41,12 @@ if public_mode():
     store = Store(Path(tempfile.gettempdir()) / f"zfinance-{st.session_state.db_id}.db")
     st.warning("Demo mode: your data is private to this browser tab and is deleted when the "
                "session ends. Don't upload real bank exports here.")
+    st.caption("Demo data is preloaded. Go to Import to load your own CSV or clear it.")
+    # A flag, not an empty-database check, so "Delete all transactions" doesn't reload it.
+    if "demo_seeded" not in st.session_state:
+        with st.spinner("Loading demo data..."):
+            workflows.seed_demo(store)
+        st.session_state.demo_seeded = True
 else:
     store = Store()
 
@@ -230,5 +237,5 @@ def page_budgets():
 
 
 pages = {"Import": page_import, "Review": page_review, "Dashboard": page_dashboard, "Budgets": page_budgets}
-choice = st.sidebar.radio("zfinance", list(pages))
+choice = st.sidebar.radio("zfinance", list(pages), index=list(pages).index("Dashboard" if PUBLIC else "Import"))
 pages[choice]()
