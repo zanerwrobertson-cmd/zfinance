@@ -34,3 +34,10 @@ def test_predictions_never_overwrite_user_labels(tmp_path):
     assert t.loc[ids[0], "category"] == "Dining"
     assert t.loc[ids[0], "label_source"] == "user"
     assert (t.loc[ids[1:], "label_source"] == "model").all()
+
+
+def test_stores_on_different_paths_are_isolated(tmp_path):
+    a, b = Store(tmp_path / "a.db"), Store(tmp_path / "b.db")
+    a.add_transactions(parse_csv(TD).df)
+    assert len(a.transactions()) == 3
+    assert b.transactions().empty
