@@ -2,8 +2,8 @@
 
 Two layers:
 
-1. Merchant memory: if you've already labelled this exact (normalized) merchant, reuse
-   your most recent label. Cheap, and correct ~always once a merchant has been seen.
+1. Merchant memory: reuse your label for a merchant you've already labelled, matched
+   exactly or by merchant key (see normalize.merchant_key for both definitions).
 2. ML model for everything else: TF-IDF over word n-grams + character n-grams of the
    cleaned description, plus a few amount features, into a multinomial logistic
    regression. Character n-grams are what let it generalize to merchants it has never
@@ -12,7 +12,7 @@ Two layers:
 Predictions carry a probability. Low-confidence ones go to the review queue, you
 correct them, the model retrains. That loop is the point of the app.
 
-Evaluation uses GroupKFold grouped by merchant, so the score measures performance on
+Evaluation uses GroupKFold grouped by merchant key, so the score measures performance on
 merchants absent from training. A plain stratified split leaks the same merchant into
 train and test and inflates accuracy; both numbers are reported so the gap is visible.
 """
@@ -82,9 +82,36 @@ class EvalReport:
 
 
 @dataclass
+class MerchantMemory:
+    """User labels by exact clean_desc, then by merchant_key (see normalize.merchant_key)."""
+
+    exact: dict[str, str] = field(default_factory=dict)
+    by_key: dict[str, str] = field(default_factory=dict)
+
+    @classmethod
+    def from_labels(cls, labeled: pd.DataFrame) -> "MerchantMemory":
+        # Sort by id so later corrections override earlier ones.
+        ordered = labeled.sort_values("id") if "id" in labeled.columns else labeled
+        per_key = ordered["category"].groupby(ordered["clean_desc"].map(merchant_key)).unique()
+        return cls(
+            exact=dict(zip(ordered["clean_desc"], ordered["category"])),
+            by_key={k: cats[0] for k, cats in per_key.items() if len(cats) == 1},
+        )
+
+    def lookup(self, clean_desc: str) -> tuple[str | None, str | None]:
+        """(label, "exact" | "key"), or (None, None) when the model should decide."""
+        if clean_desc in self.exact:
+            return self.exact[clean_desc], "exact"
+        key = merchant_key(clean_desc)
+        if key in self.by_key:
+            return self.by_key[key], "key"
+        return None, None
+
+
+@dataclass
 class Categorizer:
     pipeline: Pipeline | None = None
-    merchant_memory: dict[str, str] = field(default_factory=dict)
+    memory: MerchantMemory = field(default_factory=MerchantMemory)
     classes_: list[str] = field(default_factory=list)
 
     @staticmethod
@@ -103,10 +130,7 @@ class Categorizer:
         y = labeled["category"].astype(str)
         self.pipeline = build_pipeline().fit(X, y)
         self.classes_ = list(self.pipeline.classes_)
-        # Most recent label per merchant wins (labeled is assumed newest-first or any order;
-        # sort by id so later corrections override earlier ones).
-        ordered = labeled.sort_values("id") if "id" in labeled.columns else labeled
-        self.merchant_memory = dict(zip(ordered["clean_desc"], ordered["category"]))
+        self.memory = MerchantMemory.from_labels(labeled)
         return self
 
     def predict(self, df: pd.DataFrame) -> tuple[list[str], list[float]]:
@@ -119,8 +143,9 @@ class Categorizer:
         cats = [self.classes_[i] for i in idx]
         confs = proba[np.arange(len(idx)), idx].tolist()
         for k, desc in enumerate(df["clean_desc"]):
-            if desc in self.merchant_memory:
-                cats[k] = self.merchant_memory[desc]
+            label, _ = self.memory.lookup(desc)
+            if label is not None:
+                cats[k] = label
                 confs[k] = max(confs[k], 0.99)
         return cats, confs
 
@@ -147,7 +172,7 @@ def evaluate(labeled: pd.DataFrame, n_splits: int = 5, seed: int = 0) -> EvalRep
     groups = labeled["clean_desc"].map(merchant_key).to_numpy()
     n_groups = len(set(groups))
 
-    # Unseen-merchant evaluation: no merchant appears in both train and test.
+    # Unseen-merchant evaluation: no merchant key appears in both train and test.
     k = max(2, min(n_splits, n_groups))
     preds = np.empty(len(y), dtype=object)
     for tr, te in GroupKFold(n_splits=k).split(X, y, groups):

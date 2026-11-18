@@ -51,7 +51,15 @@ def normalize_description(raw: str) -> str:
 def merchant_key(clean_desc: str) -> str:
     """Coarse merchant identity: the first two tokens of a cleaned description.
 
-    "second cup london" and "second cup st thomas" are the same merchant. Used to group
-    cross-validation folds so evaluation never tests on a merchant seen in training.
+    zfinance has two definitions of "the same merchant":
+
+    * Exact: identical clean_desc ("second cup london"). The strict, unambiguous one.
+    * Key: identical merchant_key ("second cup"), so "second cup st thomas" matches too.
+
+    Evaluation groups cross-validation folds by key, the stricter test: no test merchant
+    shares even its first two tokens with training. Merchant memory (categorizer) and the
+    Review page's "same merchant" option try an exact match first, then fall back to the
+    key only when every user label under that key agrees. A conflicting key such as
+    "e transfer" (Rent and Other) never falls back, and the model decides instead.
     """
     return " ".join(clean_desc.split()[:2])
