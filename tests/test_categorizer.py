@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from zfinance.categorizer import Categorizer, evaluate
+from zfinance.categorizer import Categorizer, MerchantMemory, evaluate
 from zfinance.normalize import normalize_description
 from zfinance.synth import generate
 
@@ -55,3 +55,25 @@ def test_evaluate_reports_leakage_gap(labeled):
     assert rep.n_labels == len(common)
     # Random split leaks merchants across folds, so it should beat unseen-merchant accuracy.
     assert rep.random_split_accuracy > rep.unseen_merchant_accuracy
+
+
+def _memory(rows):
+    return MerchantMemory.from_labels(pd.DataFrame(rows, columns=["id", "clean_desc", "category"]))
+
+
+def test_memory_falls_back_to_merchant_key():
+    mem = _memory([(1, "second cup london", "Dining")])
+    assert mem.lookup("second cup st thomas") == ("Dining", "key")
+
+
+def test_memory_skips_key_with_conflicting_labels():
+    mem = _memory([(1, "e transfer landlord", "Rent"), (2, "e transfer jane", "Other")])
+    assert mem.lookup("e transfer bob") == (None, None)
+
+
+def test_memory_exact_match_beats_key():
+    # The key "second cup" is ambiguous, but each exact string still has its own label.
+    mem = _memory([(1, "second cup london", "Dining"), (2, "second cup beans", "Groceries")])
+    assert mem.lookup("second cup beans") == ("Groceries", "exact")
+    assert mem.lookup("second cup london") == ("Dining", "exact")
+    assert mem.lookup("second cup st thomas") == (None, None)
