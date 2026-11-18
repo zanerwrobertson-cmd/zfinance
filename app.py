@@ -17,7 +17,6 @@ from zfinance.analytics import budget_status, category_by_month, detect_recurrin
 from zfinance.categorizer import propagate_labels
 from zfinance.db import Store
 from zfinance.importers import ImportFormatError, parse_csv, parse_mapped, preview_rows
-from zfinance.synth import generate
 
 st.set_page_config(page_title="zfinance", layout="wide")
 
@@ -98,10 +97,7 @@ def page_import():
     st.caption("12 months of synthetic transactions. The first 2 months keep their labels; the model categorizes the rest.")
     c1, c2 = st.columns(2)
     if c1.button("Load demo data"):
-        demo = generate()
-        cutoff = demo["date"].min() + pd.DateOffset(months=2)
-        demo.loc[demo["date"] >= cutoff, "category"] = None
-        import_parsed(demo)
+        st.success(workflows.seed_demo(store))
     if c2.button("Delete all transactions"):
         store.clear()
         st.success("Cleared.")
