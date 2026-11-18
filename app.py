@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
+import uuid
+import weakref
+from pathlib import Path
+
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -14,7 +20,29 @@ from zfinance.importers import ImportFormatError, parse_csv, parse_mapped, previ
 from zfinance.synth import generate
 
 st.set_page_config(page_title="zfinance", layout="wide")
-store = Store()
+
+
+def public_mode() -> bool:
+    if os.environ.get("ZFINANCE_PUBLIC") == "1":
+        return True
+    try:
+        return str(st.secrets.get("ZFINANCE_PUBLIC", "")) == "1"
+    except FileNotFoundError:  # no secrets.toml
+        return False
+
+
+if public_mode():
+    if "db_id" not in st.session_state:
+        st.session_state.db_id = uuid.uuid4().hex
+        # Only session_state holds this marker, so the file is deleted when Streamlit drops the session.
+        st.session_state.db_marker = marker = set()
+        path = Path(tempfile.gettempdir()) / f"zfinance-{st.session_state.db_id}.db"
+        weakref.finalize(marker, path.unlink, missing_ok=True)
+    store = Store(Path(tempfile.gettempdir()) / f"zfinance-{st.session_state.db_id}.db")
+    st.warning("Demo mode: your data is private to this browser tab and is deleted when the "
+               "session ends. Don't upload real bank exports here.")
+else:
+    store = Store()
 
 
 def retrain() -> str:
