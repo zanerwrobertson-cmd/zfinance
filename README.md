@@ -32,6 +32,16 @@ In the app, open **Import** and click **Load demo data** to try it without your 
 
 The database is created at `data/zfinance.db`, which git ignores.
 
+## Deploying
+
+To host a public demo on Streamlit Cloud, add this to the app's secrets (or set it as an environment variable):
+
+```toml
+ZFINANCE_PUBLIC = 1
+```
+
+In public mode each browser session gets its own temporary SQLite file, which is deleted when the session ends, and the app shows a banner warning visitors not to upload real bank exports. Without the setting, the app uses the shared `data/zfinance.db`, so never deploy it publicly that way.
+
 ## Architecture
 
 ```
