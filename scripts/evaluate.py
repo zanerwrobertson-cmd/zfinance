@@ -41,16 +41,22 @@ def temporal(df: pd.DataFrame, train_months: int) -> dict:
     train = df[df["date"].dt.to_period("M") < cutoff]
     test = df[df["date"].dt.to_period("M") >= cutoff]
     model = Categorizer().fit(train)
-    preds, confs = model.predict(test)
-    preds, confs = np.array(preds), np.array(confs)
+    preds, confs, sources = model.predict_with_source(test)
+    preds, confs, sources = np.array(preds), np.array(confs), np.array(sources)
     y = test["category"].to_numpy()
     auto = confs >= THRESHOLD
+    mem = sources != "model"
+    acc = lambda mask: float((preds[mask] == y[mask]).mean()) if mask.any() else float("nan")  # noqa: E731
     return {
         "train_txns": len(train),
         "accuracy": float((preds == y).mean()),
         "automation_rate": float(auto.mean()),
         "precision_auto": float((preds[auto] == y[auto]).mean()) if auto.any() else float("nan"),
         "rule_accuracy": float((test["clean_desc"].map(rule_categorize).to_numpy() == y).mean()),
+        "memory_share": float(mem.mean()),
+        "memory_accuracy": acc(mem),
+        "model_accuracy": acc(~mem),
+        "precision_auto_model": acc(auto & ~mem),
     }
 
 
@@ -96,15 +102,20 @@ def run(datasets: list[pd.DataFrame]) -> str:
         f"| Model, unseen merchants only | {pct(s['unseen'])} (macro-F1 {s['unseen_f1']:.2f}) |",
         "",
         "The random split lets the same merchant appear in train and test, which flatters the "
-        "model. The unseen-merchant score (GroupKFold by normalized merchant) is the honest "
+        "model. The unseen-merchant score (GroupKFold by merchant key) is the honest "
         "measure of generalization.",
         "",
         "## Realistic use: label the first N months, predict the rest",
         "",
         f"Auto-accept threshold: confidence >= {THRESHOLD}.",
         "",
-        "| Months labelled | Model accuracy | Keyword rules | Auto-categorized | Precision on auto-categorized |",
-        "|---|---|---|---|---|",
+        "Memory = answered by merchant memory (exact or merchant-key match); model-only = "
+        "everything else. Accuracy (all), Auto-categorized and Precision on auto-categorized "
+        "combine both.",
+        "",
+        "| Months labelled | Accuracy (all) | Keyword rules | Auto-categorized | Precision on auto-categorized "
+        "| From memory | Memory accuracy | Model-only accuracy | Precision on auto-accepted model-only |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for k, rows in temp.items():
         if not rows:
@@ -112,7 +123,8 @@ def run(datasets: list[pd.DataFrame]) -> str:
         t = pd.DataFrame(rows).mean()
         lines.append(
             f"| {k} | {pct(t['accuracy'])} | {pct(t['rule_accuracy'])} | "
-            f"{pct(t['automation_rate'])} | {pct(t['precision_auto'])} |"
+            f"{pct(t['automation_rate'])} | {pct(t['precision_auto'])} | {pct(t['memory_share'])} | "
+            f"{pct(t['memory_accuracy'])} | {pct(t['model_accuracy'])} | {pct(t['precision_auto_model'])} |"
         )
     lines += [
         "",
