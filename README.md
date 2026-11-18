@@ -77,14 +77,14 @@ If both fail, the app shows a preview and lets you pick the columns.
 
 The categorizer has two layers:
 
-1. **Merchant memory**: if you've already labelled this exact merchant, it reuses your most recent label.
+1. **Merchant memory**: if you've already labelled this exact merchant string, it reuses your most recent label. Otherwise it falls back to the merchant key (the first two words, so "second cup st thomas" matches "second cup london"), but only when all your labels under that key agree. A key with conflicting labels, such as "e transfer" used for both Rent and Other, is left to the model. The Review page's "same merchant" option follows the same rule.
 2. **Model** for everything else: word and character n-gram TF-IDF over the cleaned description, plus amount features (sign, log magnitude, round-number flag), feeding a class-balanced multinomial logistic regression. The character n-grams let it generalize to merchants it has never seen, for example "golden bakery" → Dining.
 
 User labels are never overwritten by predictions. Each retrain logs its cross-validated scores to the database.
 
 ### Evaluation methodology
 
-A random train/test split lets the same merchant appear on both sides, so it mostly measures memorization. zfinance also reports **GroupKFold grouped by merchant**, where every test merchant is absent from training, and shows both numbers so the gap is visible. The benchmark also simulates real use: label the first N months, then predict the rest.
+A random train/test split lets the same merchant appear on both sides, so it mostly measures memorization. zfinance also reports **GroupKFold grouped by merchant key**, where no test merchant shares even its first two words with training, and shows both numbers so the gap is visible. The benchmark also simulates real use: label the first N months, then predict the rest.
 
 ## Evaluation
 
