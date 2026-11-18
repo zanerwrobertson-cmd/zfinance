@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from zfinance.categorizer import Categorizer, MerchantMemory, evaluate
+from zfinance.categorizer import Categorizer, MerchantMemory, evaluate, propagate_labels
 from zfinance.normalize import normalize_description
 from zfinance.synth import generate
 
@@ -77,3 +77,15 @@ def test_memory_exact_match_beats_key():
     assert mem.lookup("second cup beans") == ("Groceries", "exact")
     assert mem.lookup("second cup london") == ("Dining", "exact")
     assert mem.lookup("second cup st thomas") == (None, None)
+
+
+def test_propagate_labels_uses_same_rule_as_memory():
+    df = pd.DataFrame(
+        [(1, "second cup london", None, None), (2, "second cup st thomas", None, None),
+         (3, "second cup london", None, None), (4, "e transfer landlord", "Rent", "user"),
+         (5, "e transfer jane", None, None), (6, "e transfer bob", None, None)],
+        columns=["id", "clean_desc", "category", "label_source"],
+    )
+    assert propagate_labels(df, {1: "Dining"}) == {1: "Dining", 3: "Dining", 2: "Dining"}
+    # "e transfer" would hold Rent and Other, so the key doesn't spread to bob.
+    assert propagate_labels(df, {5: "Other"}) == {5: "Other"}

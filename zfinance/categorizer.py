@@ -205,3 +205,26 @@ def evaluate(labeled: pd.DataFrame, n_splits: int = 5, seed: int = 0) -> EvalRep
         random_split_accuracy=float(acc_r),
         per_class_f1={k: float(v) for k, v in per_class.items()},
     )
+
+
+def propagate_labels(df: pd.DataFrame, labels: dict[int, str]) -> dict[int, str]:
+    """Extend new labels {id: category} to the same merchant, using the MerchantMemory rule.
+
+    Rows with the same clean_desc always take the new label. Other rows sharing its merchant
+    key take the key's label only if every user label under that key, after this save, agrees.
+    """
+    clean = df.set_index("id")["clean_desc"]
+    out = {}
+    for i, cat in labels.items():
+        out.update(dict.fromkeys(clean.index[clean == clean[i]], cat))
+    user = df[df["label_source"] == "user"].set_index("id")["category"].to_dict() | out
+    memory = MerchantMemory.from_labels(
+        pd.DataFrame({"id": list(user), "clean_desc": clean[list(user)].values, "category": list(user.values())})
+    )
+    keys = {merchant_key(clean[i]) for i in labels}
+    for j, desc in clean.items():
+        if j not in user and merchant_key(desc) in keys:
+            label, _ = memory.lookup(desc)
+            if label is not None:
+                out[j] = label
+    return out

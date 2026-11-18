@@ -14,7 +14,7 @@ import streamlit as st
 
 from zfinance import CATEGORIES
 from zfinance.analytics import budget_status, category_by_month, detect_recurring, monthly_summary
-from zfinance.categorizer import Categorizer, evaluate
+from zfinance.categorizer import Categorizer, evaluate, propagate_labels
 from zfinance.db import Store
 from zfinance.importers import ImportFormatError, parse_csv, parse_mapped, preview_rows
 from zfinance.synth import generate
@@ -165,10 +165,7 @@ def page_review():
         changed = changed[changed["category"].notna()]
         labels = dict(zip(changed["id"], changed["category"]))
         if same_merchant:
-            clean = df.set_index("id")["clean_desc"]
-            for i, cat in list(labels.items()):
-                for j in df.loc[df["clean_desc"] == clean[i], "id"]:
-                    labels[j] = cat
+            labels = propagate_labels(df, labels)
         store.set_labels(labels)
         st.success(f"Saved {len(labels)} labels. Retrain to update predictions.")
 
