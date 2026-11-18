@@ -99,18 +99,21 @@ Output of `python scripts/evaluate.py`, averaged over 5 simulated users (~674 tr
 
 **Realistic use: label the first N months, predict the rest** (auto-accept at confidence ≥ 0.8)
 
-| Months labelled | Model accuracy | Keyword rules | Auto-categorized | Precision on auto-categorized |
-|---|---|---|---|---|
-| 1 | 77.7% | 74.7% | 44.0% | 100.0% |
-| 2 | 86.2% | 74.3% | 60.1% | 99.8% |
-| 3 | 91.5% | 74.4% | 70.8% | 99.9% |
-| 6 | 96.6% | 74.4% | 88.5% | 99.9% |
+Memory = answered by merchant memory (exact or merchant-key match); model-only = everything else. Accuracy (all), Auto-categorized and Precision on auto-categorized combine both.
+
+| Months labelled | Accuracy (all) | Keyword rules | Auto-categorized | Precision on auto-categorized | From memory | Memory accuracy | Model-only accuracy | Precision on auto-accepted model-only |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 77.8% | 74.7% | 58.3% | 99.2% | 56.7% | 99.2% | 49.4% | 100.0% |
+| 2 | 86.3% | 74.3% | 73.8% | 99.5% | 71.0% | 99.7% | 53.3% | 95.4% |
+| 3 | 91.6% | 74.4% | 80.9% | 99.9% | 77.9% | 100.0% | 61.9% | 98.8% |
+| 6 | 96.7% | 74.4% | 91.8% | 99.9% | 87.8% | 99.9% | 72.8% | 98.9% |
 
 What the numbers show:
 
-- After one month of labels the model already edges out hand-written rules. After six months it reaches 96.6%.
-- Predictions above the confidence threshold are 99.8% precise or better, so most transactions can be auto-accepted and only the uncertain ones need review.
-- On merchants it has never seen, the model gets about 54%. The merchant memory and the review loop cover that gap.
+- After one month of labels, overall accuracy (77.8%) is roughly even with the keyword rules (74.7%). After six months it reaches 96.7%, against 74.4% for the rules.
+- Most of that comes from merchant memory. It answers 57% of transactions after one month and 88% after six, and those answers are over 99% accurate.
+- The model on its own, on the transactions memory can't answer, gets 49.4% after one month and 72.8% after six. That's below the keyword rules, though the rules are scored on all transactions, not on this harder subset. On unseen merchants in cross-validation the model gets 54.0%.
+- Auto-accepted predictions (confidence ≥ 0.8) are 99.2% precise or better, and they cover 58% of transactions after one month and 92% after six. Nearly all of them are memory hits: the model alone clears the threshold for only 1.6-4.0% of transactions, so its 95-100% precision there rests on a handful of transactions per user.
 
 **Caveat:** the data is synthetic, and the keyword rules were written knowing the merchant list, which favours the baseline. To benchmark your own labelled data, run `python scripts/evaluate.py --db data/zfinance.db`.
 
@@ -120,4 +123,4 @@ What the numbers show:
 python -m pytest
 ```
 
-The tests cover description normalization, the RBC, TD and generic headerless importers, sign inversion, manual mapping, dedup on re-import, protection of user labels, and the categorizer (training guards, merchant memory, evaluation).
+The tests cover description normalization, the RBC, TD and generic headerless importers, sign inversion, manual mapping, dedup on re-import, protection of user labels, and the categorizer (training guards, exact and merchant-key memory, review-page label propagation, prediction sources, evaluation), and per-session database isolation.
