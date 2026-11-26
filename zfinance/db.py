@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -13,6 +14,15 @@ import pandas as pd
 from .normalize import normalize_description
 
 DEFAULT_DB = Path(__file__).resolve().parent.parent / "data" / "zfinance.db"
+
+
+def device_db(ip: str) -> Path:
+    """Database for the device at `ip`: this machine keeps DEFAULT_DB, others get their own file."""
+    addr = ipaddress.ip_address(ip.split("%")[0])  # raises ValueError on anything that isn't an IP
+    addr = getattr(addr, "ipv4_mapped", None) or addr
+    if addr.is_loopback:
+        return DEFAULT_DB
+    return DEFAULT_DB.parent / "devices" / (str(addr).replace(":", "-") + ".db")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS transactions (

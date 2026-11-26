@@ -1,6 +1,8 @@
 import pandas as pd
 
-from zfinance.db import Store
+import pytest
+
+from zfinance.db import DEFAULT_DB, Store, device_db
 from zfinance.importers import parse_csv
 
 TD = """10/01/2025,MCDONALD'S #7326,10.06,,1614.94
@@ -41,3 +43,14 @@ def test_stores_on_different_paths_are_isolated(tmp_path):
     a.add_transactions(parse_csv(TD).df)
     assert len(a.transactions()) == 3
     assert b.transactions().empty
+
+
+def test_device_db_separates_by_ip():
+    for local in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+        assert device_db(local) == DEFAULT_DB
+    other = device_db("192.168.1.20")
+    assert other != DEFAULT_DB and other.parent == DEFAULT_DB.parent / "devices"
+    assert device_db("192.168.1.21") != other
+    assert ":" not in device_db("fe80::1%eth0").name
+    with pytest.raises(ValueError):
+        device_db("../zfinance")
