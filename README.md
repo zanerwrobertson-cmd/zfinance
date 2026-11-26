@@ -33,7 +33,7 @@ Versions are pinned so a new release of a dependency can't break the app. The pi
 
 In the app, open **Import** and click **Load demo data** to try it without your own bank data. `sample_data/` also has example RBC and TD exports.
 
-The database is created at `data/zfinance.db`, which git ignores.
+The database is created at `data/zfinance.db` (other devices on your network get `data/devices/<ip>.db`), which git ignores.
 
 ## Deploying
 
@@ -43,7 +43,7 @@ To host a public demo on Streamlit Cloud, add this to the app's secrets (or set 
 ZFINANCE_PUBLIC = 1
 ```
 
-In public mode each browser session gets its own temporary SQLite file, which is deleted when the session ends, and the app shows a banner warning visitors not to upload real bank exports. Without the setting, the app uses the shared `data/zfinance.db`, so never deploy it publicly that way.
+In public mode each browser session gets its own temporary SQLite file, which is deleted when the session ends, and the app shows a banner warning visitors not to upload real bank exports. Without the setting, each device gets its own database, keyed by its IP address: this machine uses `data/zfinance.db` and other devices on your network get `data/devices/<ip>.db`, so they can't see your data. An IP address isn't a password (devices behind the same router or proxy share one), so still never deploy it publicly that way.
 
 ## Architecture
 
