@@ -15,7 +15,7 @@ import streamlit as st
 from zfinance import CATEGORIES, workflows
 from zfinance.analytics import budget_status, category_by_month, detect_recurring, monthly_summary
 from zfinance.categorizer import propagate_labels
-from zfinance.db import Store
+from zfinance.db import Store, device_db
 from zfinance.importers import ImportFormatError, parse_csv, parse_mapped, preview_rows
 
 st.set_page_config(page_title="zfinance", layout="wide")
@@ -48,7 +48,14 @@ if PUBLIC:
             workflows.seed_demo(store)
         st.session_state.demo_seeded = True
 else:
-    store = Store()
+    # Not st.context.ip_address: it returns None both for localhost and for an unknown client.
+    from streamlit.runtime.context import _get_client_context
+    client = _get_client_context()
+    try:
+        store = Store(device_db(client.remote_ip))
+    except (AttributeError, TypeError, ValueError):  # no client or no usable IP: show nothing
+        st.error("Couldn't identify this device, so no data is shown.")
+        st.stop()
 
 
 def retrain() -> None:
